@@ -57,3 +57,6 @@ Langkah demo:
    *Potential Low-and-Slow Reconnaissance*.
 
 Catatan: capture di `lo` merekam paket ganda, sehingga parser membuang salinan identik (< 50 ms).
+
+> Catatan: Live Monitor aktif saat dijalankan lokal lewat `./run.sh` (mengatur `SLOWTRACE_LIVE=1`).
+> Pada versi hosting, tab itu dinonaktifkan karena capture paket tidak tersedia di server cloud.

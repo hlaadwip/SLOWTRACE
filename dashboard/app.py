@@ -193,7 +193,7 @@ ctrl1, ctrl2, ctrl3 = st.columns([1.4, 1.6, 2.2])
 with ctrl1:
     input_source = st.selectbox(
         "Dataset",
-        ["Benchmark Dataset (slowtrace_benchmark.pcap)", "Sample Dataset (sample_recon.pcap)", "Upload Custom PCAP"],
+        ["Benchmark Dataset (slowtrace_benchmark.pcap)"] + (["Sample Dataset (sample_recon.pcap)"] if os.path.exists("data/sample_recon.pcap") else []) + ["Upload Custom PCAP"],
         label_visibility="collapsed",
     )
 
@@ -424,6 +424,10 @@ with tabs[4]:
 
 # ================= TAB 6: LIVE MONITOR =================
 with tabs[5]:
+    if os.getenv("SLOWTRACE_LIVE") != "1":
+        st.info("Live Monitor hanya tersedia saat SLOWTRACE dijalankan secara lokal, karena butuh izin capture pada interface jaringan. "
+                "Lihat video demo atau jalankan lokal sesuai README.")
+        st.stop()
     from datetime import datetime
     from src.live_capture import list_interfaces, capture_packets, save_pcap
 
