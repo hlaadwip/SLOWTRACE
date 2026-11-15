@@ -14,3 +14,4 @@ data/live/
 data/uploaded.pcap
 reports/*
 !reports/.gitkeep
+*.bak*

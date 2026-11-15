@@ -36,6 +36,8 @@ class PacketParser:
                     row["src_port"] = int(tcp.sport)
                     row["dst_port"] = int(tcp.dport)
                     row["tcp_flags"] = str(tcp.flags)
+                    row["seq"] = int(tcp.seq)
+                    row["ack"] = int(tcp.ack)
                 elif pkt.haslayer(UDP):
                     udp = pkt[UDP]
                     row["protocol"] = "UDP"
@@ -48,8 +50,15 @@ class PacketParser:
 
         df = pd.DataFrame(records)
         if not df.empty:
-            df["datetime"] = pd.to_datetime(df["timestamp"], unit="s")
             df = df.sort_values(by="timestamp").reset_index(drop=True)
+            # Interface loopback ('lo') bisa merekam paket yang sama dua kali.
+            # Buang salinan identik (5-tuple, flag, seq, ack) yang muncul < 50 ms setelah aslinya.
+            tcp_rows = df[df["protocol"] == "TCP"]
+            if not tcp_rows.empty:
+                key = ["src_ip", "dst_ip", "src_port", "dst_port", "tcp_flags", "seq", "ack"]
+                gap = tcp_rows.groupby(key)["timestamp"].diff()
+                df = df.drop(index=gap[gap < 0.05].index).reset_index(drop=True)
+            df["datetime"] = pd.to_datetime(df["timestamp"], unit="s")
             df["inter_arrival_time"] = (
                 df.groupby(["src_ip", "dst_ip"])["timestamp"].diff().fillna(0.0)
             )

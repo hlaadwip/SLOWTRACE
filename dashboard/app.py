@@ -84,6 +84,12 @@ def bk(df, n):
     return df["datetime"].dt.floor(f"{max(1, int(span / n))}s")
 
 
+def probes_only(d):
+    """Paket pembuka koneksi TCP (tanpa ACK/RST): menyaring balasan server dan port ephemeral."""
+    t = d[d["protocol"] == "TCP"]
+    return t[~t["tcp_flags"].astype(str).str.contains("A|R", regex=True)]
+
+
 def alert_html(r):
     c = C.get(r["Risk Level"], CY)
     return (
@@ -248,7 +254,7 @@ with tabs[0]:
     with L:
         with st.container(border=True):
             ph("Real-Time Threat Detections")
-            vol = dfp.groupby(["bucket", "src_ip"]).size().reset_index(name="probes")
+            vol = probes_only(dfp).groupby(["bucket", "src_ip"]).size().reset_index(name="probes")
             f = px.line(vol, x="bucket", y="probes", color="src_ip", markers=True, color_discrete_sequence=PAL)
             f.update_traces(line_shape="spline", line_width=1.6, marker_size=5)
             st.plotly_chart(sty(f, 230, True))
@@ -272,7 +278,7 @@ with tabs[0]:
                     st.markdown(f"<div class='stat'><div class='ic' style='background:{c}'></div><div><b>{t}</b><br><small>{d}</small></div></div>", unsafe_allow_html=True)
             with b2:
                 ph("Most Probed Destination Ports")
-                pc = df_packets["dst_port"].dropna().astype(int).value_counts().head(6).reset_index()
+                pc = probes_only(df_packets)["dst_port"].dropna().astype(int).value_counts().head(6).reset_index()
                 pc.columns = ["Port", "Hits"]
                 pc["Port"] = "TCP/" + pc["Port"].astype(str)
                 f = px.bar(pc.sort_values("Hits"), x="Hits", y="Port", orientation="h", color_discrete_sequence=[CY])
@@ -283,7 +289,7 @@ with tabs[0]:
     with M:
         with st.container(border=True):
             ph("Security Alerts")
-            st.plotly_chart(sty(geomap(df_packets, geo, risk_of) if geo else topology(df_packets, risk_of), 360))
+            st.plotly_chart(sty(geomap(df_packets, geo, risk_of) if geo else topology(probes_only(df_packets), risk_of), 360))
             a1, a2 = st.columns(2)
             for i, (_, r) in enumerate(df_results.sort_values("Risk Score", ascending=False).head(4).iterrows()):
                 (a1 if i % 2 == 0 else a2).markdown(alert_html(r), unsafe_allow_html=True)
@@ -300,8 +306,8 @@ with tabs[0]:
                 f.update_coloraxes(showscale=False)
             else:
                 ph("Port Exposure Matrix (Source IP x Port)")
-                tp = df_packets["dst_port"].dropna().astype(int).value_counts().head(12).index
-                sub = df_packets[df_packets["dst_port"].isin(tp)].copy()
+                tp = probes_only(df_packets)["dst_port"].dropna().astype(int).value_counts().head(12).index
+                sub = probes_only(df_packets)[probes_only(df_packets)["dst_port"].isin(tp)].copy()
                 sub["P"] = sub["dst_port"].astype(int).astype(str)
                 hm = sub.pivot_table(index="src_ip", columns="P", values="dst_ip", aggfunc="count", fill_value=0)
                 f = px.imshow(hm, aspect="auto", color_continuous_scale=[[0, "#0D121D"], [1, CY]])
@@ -455,7 +461,7 @@ with tabs[5]:
                     k3.metric("Alert (High/Medium)", len(flagged))
                     show_df(resl[["Source IP", "Destination IP", "Unique Ports", "Unique Hosts", "Avg Interval (s)",
                                   "Detection Type", "Risk Score", "Risk Level", "Evidence"]])
-                    f = px.scatter(dfl.dropna(subset=["dst_port"]), x="datetime", y="dst_port", color="src_ip",
+                    f = px.scatter(probes_only(dfl).dropna(subset=["dst_port"]), x="datetime", y="dst_port", color="src_ip",
                                    color_discrete_sequence=PAL)
                     f.update_yaxes(title="Destination Port")
                     st.plotly_chart(sty(f, 280, True), key=f"live_chart_{i}")

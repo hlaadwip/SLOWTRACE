@@ -36,3 +36,24 @@ Tanpa file itu, dashboard memakai topologi koneksi dan matriks port.
 - Live Monitor di WSL2 hanya melihat trafik milik WSL.
 - Pemblokiran nyata hanya lewat skrip CLI dengan allowlist; dashboard hanya simulasi.
 - Gunakan hanya pada jaringan dan IP yang Anda miliki izinnya.
+
+## Demo Live Monitor (uji low-and-slow di komputer sendiri)
+
+Live Monitor menangkap paket TCP secara bertahap dan menganalisis ulang secara kumulatif,
+sehingga pola low-and-slow baru terdeteksi setelah bukti lintas waktu cukup.
+
+Izin capture (sekali saja, di WSL):
+
+~~~bash
+sudo setcap cap_net_raw,cap_net_admin=eip "$(readlink -f .venv/bin/python)"
+~~~
+
+Langkah demo:
+1. Jalankan dashboard, buka tab **Live Monitor**, pilih interface `lo`, durasi 60 detik, 4 siklus.
+2. Klik **Mulai Live Capture**.
+3. Di terminal lain jalankan `python scripts/slow_scan_test.py`
+   (satu port tiap 20 detik, hanya ke 127.0.0.1).
+4. Setelah sekitar 5 port terkumpul, `127.0.0.1` terdeteksi sebagai
+   *Potential Low-and-Slow Reconnaissance*.
+
+Catatan: capture di `lo` merekam paket ganda, sehingga parser membuang salinan identik (< 50 ms).
